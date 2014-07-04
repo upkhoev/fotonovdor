@@ -142,6 +142,9 @@ switch ($do) {
         $limit = $appConfig['max_rendered_files'];
         $i = 0;
         $msg = "";
+        if (!file_exists('old/')) {
+            mkdir("old", 0777);
+        }
         for ($i = 0; $i <= $limit; $i++) {
             if (isset($files[$i])) {
                 $item = $files[$i];
@@ -171,20 +174,19 @@ switch ($do) {
         }
         
         $efile = New File($emailDataFile);
-        $efile->open("+r");
-            
-        if ($efile->countLines() > 100) {
+        $efile->open("r+");
+        $lines = $efile->countLines();
+        $efile->closeFp();
+        if ( $lines > 100 ) {
             sendEmailLogData();
         }
-        $efile->closeFp();
-
+        
         if (isset($msg) && !empty($msg)) {
             $efile = New File($emailDataFile);
             $efile->open();
             $efile->writeToFile($msg);
             $efile->closeFp();
         }
-
 
         /* Определение расстояния */
         if (!empty($distance) && !empty($images)) {
@@ -428,7 +430,8 @@ switch ($do) {
         break;
 
     case 'test':
-        sendEmailLogData();
+        var_dump(file_exists('old/'));
+        //sendEmailLogData();
         /*include  $appConfig['path_to_swift'] . 'swift_required.php';
         $emailDataFile = 'emaildata.txt';
         $efile = New File($emailDataFile);
