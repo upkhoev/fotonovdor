@@ -127,7 +127,7 @@ switch ($do) {
 
     case 'handle_imgs':
         include 'WideImage/WideImage.php';
-        include  $appConfig['path_to_swift'] . 'swift_required.php';
+        //include  $appConfig['path_to_swift'] . 'swift_required.php';
         $emailDataFile = 'emaildata.txt';
         if (isset($_REQUEST['files'])) {
             $files = $_REQUEST['files'];
@@ -169,6 +169,14 @@ switch ($do) {
                 }
             }
         }
+        
+        $efile = New File($emailDataFile);
+        $efile->open("+r");
+            
+        if ($efile->countLines() > 100) {
+            sendEmailLogData();
+        }
+        $efile->closeFp();
 
         if (isset($msg) && !empty($msg)) {
             $efile = New File($emailDataFile);
@@ -177,53 +185,6 @@ switch ($do) {
             $efile->closeFp();
         }
 
-
-        $efile = New File($emailDataFile);
-        $efile->open("r+");
-        // Отправляем содержимое файла на почту через определенный промежуток
-        $email_send_file = New File('email_send_time.txt');
-        $email_send_file->open("r");
-        $send_file_time = $email_send_file->readData();
-        $fileModDate = intval($send_file_time);
-        $email_send_file->closeFp();
-        $interval = $appConfig['email_send_interval'];
-
-        if (
-            time() - $fileModDate > $interval
-                &&
-            $appConfig['send_email'] == 1
-                &&
-            class_exists('Swift_Message')
-        ) {
-            $msg = $efile->readData();
-            if (!empty($msg)) {
-                $transport = Swift_SmtpTransport::newInstance($appConfig['smtp_transport']['smtp_server'], $appConfig['smtp_transport']['port'], 'ssl')
-                  ->setUsername($appConfig['smtp_transport']['username'])
-                  ->setPassword($appConfig['smtp_transport']['password']);
-                // Create the Mailer using your created Transport
-                $mailer = Swift_Mailer::newInstance($transport);
-                // Create the message
-                $message = Swift_Message::newInstance()
-                    // Give the message a subject
-                    ->setSubject('Лог обработки фотографий ' . date("r"))
-
-                    // Set the From address with an associative array
-                    ->setFrom(array('it@novdor.ru' => 'Admin'))
-                    ->setTo(array($appConfig['report_email']))
-                    // Give it a body
-                    ->setBody($msg);
-                // Send the message
-                $result = $mailer->send($message);
-                $email_send_file = New File('email_send_time.txt');
-                $email_send_file->open("w+");
-                $email_send_file->writeToFile(time());
-                $email_send_file->closeFp();
-            }
-            $newFile = New File($emailDataFile);
-            $newFile->open("w+");
-            $newFile->closeFp();
-        }
-        $efile->closeFp();
 
         /* Определение расстояния */
         if (!empty($distance) && !empty($images)) {
@@ -467,7 +428,13 @@ switch ($do) {
         break;
 
     case 'test':
-        
+        sendEmailLogData();
+        /*include  $appConfig['path_to_swift'] . 'swift_required.php';
+        $emailDataFile = 'emaildata.txt';
+        $efile = New File($emailDataFile);
+        $efile->open("r+");
+        var_dump($efile->countLines());
+        $efile->closeFp();*/
         break;
     case 'setting':
         $roadsModel = new Roads($appConfig);

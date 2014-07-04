@@ -5,14 +5,22 @@ error_reporting(-1);
 date_default_timezone_set("Asia/Irkutsk");
 class config {
     private static $configDir = 'config';
-
+    protected static $config = NULL;
+    
+    private function __construct() {}
+    private function __clone() {}
+    
     public static function load($param = array()) {
+        if ( self::$config !== NULL ) {
+            return self::$config;
+        }
+        
         $configDir = self::$configDir;
         include_once $configDir . '/configuration.php';
         include_once $configDir . '/db.php';
         include_once $configDir . '/smtp.php';
         if (isset($config)) {
-
+            
             if (isset($config['db'])) {
                 $mysqli = db::getInstance($config['db']);
                 $roadsModel = new Roads(array('db' => $config['db']));
@@ -30,8 +38,8 @@ class config {
                     $config[$val['settingKey']] = $val['settingVal'];
                 }
             }
-
-            return $config;
+            self::$config = $config;
+            return self::$config;
         } else {
             exit('Config file not found!');
             return FALSE;
@@ -237,8 +245,66 @@ class db {
     }
 }
 
+function sendEmailLogData() {
+    $appConfig = config::load();
+    include  $appConfig['path_to_swift'] . 'swift_required.php';
+    $emailDataFile = 'emaildata.txt';
+    
+    $efile = New File($emailDataFile);
+    $efile->open("r+");
+    // Отправляем содержимое файла на почту через определенный промежуток
+    $email_send_file = New File('email_send_time.txt');
+    $email_send_file->open("r");
+    $send_file_time = $email_send_file->readData();
+    $fileModDate = intval($send_file_time);
+    $email_send_file->closeFp();
+    $interval = $appConfig['email_send_interval'];
+
+    if (
+        time() - $fileModDate > $interval
+            &&
+        $appConfig['send_email'] == 1
+            &&
+        class_exists('Swift_Message')
+    ) {
+        $msg = $efile->readData();
+        if (!empty($msg)) {
+            $transport = Swift_SmtpTransport::newInstance($appConfig['smtp_transport']['smtp_server'], $appConfig['smtp_transport']['port'], 'ssl')
+              ->setUsername($appConfig['smtp_transport']['username'])
+              ->setPassword($appConfig['smtp_transport']['password']);
+            // Create the Mailer using your created Transport
+            $mailer = Swift_Mailer::newInstance($transport);
+            // Create the message
+            $message = Swift_Message::newInstance()
+                // Give the message a subject
+                ->setSubject('Лог обработки фотографий ' . date("r"))
+
+                // Set the From address with an associative array
+                ->setFrom(array('it@novdor.ru' => 'Admin'))
+                ->setTo(array($appConfig['report_email']))
+                // Give it a body
+                ->setBody($msg);
+            // Send the message
+            $result = $mailer->send($message);
+            
+            /* Записываем время отправки письма */
+            $email_send_file = New File('email_send_time.txt');
+            if ($email_send_file) {
+                $email_send_file->open("w+");
+                $email_send_file->writeToFile(time());
+                $email_send_file->closeFp();
+            }
+        }
+        /* Очищаем файл */
+        $newFile = New File($emailDataFile);
+        $newFile->open("w+");
+        $newFile->closeFp();
+    }
+    $efile->closeFp();
+}
+
 class File {
-    public $file;
+    public $file = NULL;
 
     /**
      * resource fopen
@@ -257,7 +323,6 @@ class File {
 
         if (file_exists($pathToFile)) {
             $this->file = dirname(__FILE__) . '/' . ltrim($pathToFile, '/');
-
         } else {
             return FALSE;
         }
@@ -294,7 +359,9 @@ class File {
 
     public function open($r = "a+")
     {
-        $this->fp = fopen($this->file, $r);
+        if ($this->file !== NULL) {
+            $this->fp = fopen($this->file, $r);
+        }
     }
 
 
@@ -302,19 +369,24 @@ class File {
     {
         fwrite($this->fp, $msg . "\n");
     }
+    
+    public function countLines()
+    {
+        return count($this->readData(TRUE));
+    }
 
-    public function readData($arrayList = FALSE)
+    public function readData($toArray = FALSE)
     {
         if ($this->fp) {
-            $data = ($arrayList ? array() : "");
+            $data = ($toArray ? array() : "");
             while (!feof($this->fp)) {
                 $line = fgets($this->fp, 999);
-                if ($arrayList) {
-                    if (!empty($line)) {
+                if (!empty($line)) {
+                    if ($toArray) {
                         $data[] = $line;
-                    }
-                } else {
-                    $data .= $line;
+                    } else {
+                        $data .= $line;
+                    } 
                 }
             }
             return $data;
