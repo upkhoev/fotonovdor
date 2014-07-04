@@ -1,0 +1,17 @@
+upload/
+old/
+img/
+cache/
+Noveishaya_Tysyacha/
+config/db.php
+emaildata*.txt
+email_send_time*.txt
+
+
+# NetBeans project files
+nbproject/
+
+# Ignore objects and archives.
+*.[oa]
+
+.htaccess
