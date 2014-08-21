@@ -470,6 +470,195 @@ class File {
     }
 }
 
+function getRenderFileName($filename) {
+    return str_replace(" ", "_", $filename) . '_' . date('d-m-Y') . '_' . uniqid() . '.jpg';
+}
+
+/**
+ * Обработка изображения
+ * 
+ * @param array $imageVal
+ * @param array $appConfig
+ * @param string $fioText
+ * @return array
+ */
+function imgProcessing($imageVal, $appConfig, $fioText) {
+    //include 'WideImage/WideImage.php';
+    if (!class_exists('WideImage')) {
+        exit('Class WideImage not found!');
+    }
+    $image = WideImage::load($imageVal['src']);
+    list($width, $height, $type, $attr) = getimagesize($imageVal['src']);
+    $imgRatio = round($width / $height, 2);
+    $widescreen = 1.77;
+    if ($appConfig['crop_img_to_widescreen'] && $imgRatio < $widescreen) {
+        $cropedImg = $image->crop('center', 'bottom', $width, round($width / $widescreen) - $appConfig['footer_bg_color']);
+        unset($image);
+    } else {
+        $cropedImg = $image;
+    }
+
+    $resizedImg = $cropedImg->resize(NULL, $appConfig['down_scaling_height']);
+
+    $rgb = hex2rgb($appConfig['footer_bg_color']);
+    $white = $resizedImg->allocateColor(
+            $rgb[0],
+            $rgb[1],
+            $rgb[2]
+        );
+
+    // Добавляем внизу плашку
+    $cropImg = $resizedImg->resizeCanvas('100%', '100%+' . $appConfig['footer_height'], 0, 0, $white);
+
+    // обрезаем
+    $newImage = $cropImg->crop(0, $appConfig['footer_height'], '100%', '100%');
+
+    $choord1 = $imageVal['geolat'];
+    $choord2 = $imageVal['geolong'];
+    $text = $imageVal['road'] . ' '
+         . mb_substr($imageVal['kmtitle'], mb_strpos($imageVal['kmtitle'], 'км')) .' '. ($imageVal['plus'] ? '+' : '-') . " {$imageVal['dist']} м.";
+    if (isset($appConfig['color_text'])) {
+        $hexTxtColor = hex2rgb($appConfig['color_text']);
+        $textColor = $newImage->allocateColor($hexTxtColor[0], $hexTxtColor[1], $hexTxtColor[2]);
+    } else {
+        $textColor = $newImage->allocateColor(0, 0, 0);
+    }
+
+    $bottom = 15;
+    /* 1 */
+    $text = 'км';
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], 24, $textColor);
+    $canvas->writeText('left + 10', 'bottom - ' . $bottom, $text);
+    //$canvas->writeText('right - 220', 'bottom - 40', $text2);
+
+    /* Столб */
+    //$text = mb_substr($imageVal['km'], mb_strpos($imageVal['km'], 'км'));
+    $text = $imageVal['km'];
+    $count = 1;
+    //$text = str_replace('км', '', $text, $count);
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], $appConfig['font_size'], $textColor);
+    $canvas->writeText('left + 60', 'bottom - ' . $bottom, $text);
+
+    /* Расстояние до столба */
+    $text = '+' . $imageVal['dist'];
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], 24, $textColor);
+    $canvas->writeText('left + 185', 'bottom - ' . $bottom, $text);
+
+    /* Название дороги */
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], 12, $textColor);
+    $canvas->writeText('left + 280', 'bottom - ' . $bottom, $imageVal['road']);
+
+    /* Дата */
+    $time = strtotime($imageVal['date']);
+    $month = getRuMonth(date('m', $time));
+    $text = date('d', $time) .'-'. mb_strtoupper(mb_substr($month, 0, 1)) . mb_substr($month, 1) .'-'. date('Y', $time);
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], 32, $textColor);
+    $canvas->writeText('left + 565', 'bottom - ' . $bottom, $text);
+
+    /* Время */
+    $text = date('H:i:s');
+    $canvas = $newImage->getCanvas();
+    $canvas->useFont($appConfig['font'], 12, $textColor);
+    $canvas->writeText('left + 950', 'bottom - ' . $bottom, $text);
+
+    // Координаты
+    $choordCanvas = $newImage->getCanvas();
+    $choordCanvas->useFont($appConfig['font'], 12, $textColor);
+    $choordCanvas->writeText( 'left + 1025', 'bottom - ' . $bottom,  "($choord1, $choord2)");
+
+    $authorCanvas = $newImage->getCanvas();
+    $authorCanvas->useFont($appConfig['font'], 12, $textColor);
+    $authorCanvas->writeText( 'left + 950', 'bottom - 40', $fioText);
+
+    $mask = WideImage::load($appConfig['logo_path']);
+    $bigMask = $mask->resize('35%', '35%');
+
+    $logoOffSet = 5;
+    $maskImage = $newImage->merge($bigMask, 'right - ' . $logoOffSet, 'bottom', 100);
+    return $maskImage;
+}
+
+function convertToCp1251($str) {
+    return mb_convert_encoding($str, 'Windows-1251', 'UTF-8');
+}
+/**
+ * Функция вычисляет ближайший столб и определяет расстояние до ближ. точки
+ * 
+ * @param array $distance Массив точек(столбцов)
+ * @param array $point Точка искомая
+ */
+function prepareDistance($distance, &$point) {
+    
+        $newdistance = array();
+        foreach ($distance as $row){
+
+            // Вычисляем расстояние между двумя точками
+            $newdistance[$row['kmid']] = getDistance(
+                    $row['gpslatitude'],
+                    $row['gpslongitude'],
+                    $point['gpslatitude'],
+                    $point['gpslongitude']
+                );
+        }
+        $notsort = $newdistance;
+
+        asort($newdistance);
+
+        reset($newdistance);
+        $kmid = key($newdistance);
+        $minValue = $newdistance[$kmid];
+        next($newdistance);
+        $seckmId = key($newdistance);
+        // Вычисляем какой столб от начала(дальше или ближе)
+        if ($kmid - $seckmId > 0) {
+            // столб дальний
+            $point['plus'] = TRUE;
+        } else {
+            // столб ближний
+            $point['plus'] = FALSE;
+        }
+
+        $km = "";
+        foreach ($distance as $row) {
+            if ($kmid == $row['kmid']) {
+                $roadId = $row['roadid'];
+                $kmValue = $row['km'];
+                $km = $row['title'];
+            }
+        }
+        if (!$point['plus']) {
+            $kmValue = $kmValue - 1;
+        }
+
+        $roadName = "";
+        foreach ($roads as $road) {
+            if ($roadId == $road['roadid']) {
+                $roadName = $road['title'];
+            }
+        }
+
+        if (floor($minValue) < 1000) {
+            if (!$point['plus']) {
+                $point['dist'] = 1000 - floor($minValue);
+            } else {
+                $point['dist'] = floor($minValue);
+            }
+        } else {
+            $point['dist'] = '';
+        }
+
+        $point['kmtitle'] = $km;
+        $point['km'] = $kmValue;
+        $point['roadid'] = $roadId;
+        $point['road'] = $roadName;
+        
+}
+
 /**
  * Функция проверяет кол-во файлов в директории
  * Если кол-во больше лимита удаляет старые
@@ -523,10 +712,11 @@ function getFiles($dir , $absPath = FALSE) {
 
         }
         closedir($handle);
+        return $filelist;
     } else {
+        return FALSE;
         // Ошибка открытия директории
     }
-    return $filelist;
 }
 
 
