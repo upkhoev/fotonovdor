@@ -134,6 +134,30 @@ switch ($do) {
         } else {
             $files = getFiles($appConfig['upload_dir']);
         }
+        
+        if (isset($appConfig['upload_spec_dir']) && isset($appConfig['render_spec_dir'])) {
+            $potok2 = getFiles($appConfig['upload_spec_dir']);
+            $outputDir = $appConfig['image_dir'] . '/' . trim($appConfig['render_spec_dir'], '/') . '/';
+            if ($potok2) {
+                foreach ($potok2 as $filePath) {
+                    if (file_exists($filePath)) {
+                        $pathInfo =pathinfo($filePath); 
+                        $dir = $pathInfo['dirname'];
+                        // Обрезаем путь
+                        $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+
+                        $paths = explode('/', mb_substr($dir, $pos));
+                        $pathItem = mb_substr($dir, $pos);
+                        if (!file_exists($outputDir . $pathItem)) {
+                            mkdir($outputDir . $pathItem);
+                        }
+                        $files[] = $filePath;
+                    }
+                }
+                
+            }
+        }
+        
         $roadsModel = new Roads($appConfig);
         // Километровые столбики
         $distance = $roadsModel->getKilometrs();
@@ -190,7 +214,7 @@ switch ($do) {
         /* Определение расстояния */
         if (!empty($distance) && !empty($images)) {
             foreach ($images as &$point) {
-                prepareDistance($point);
+                prepareDistance($distance, $roads, $point);
             }
             unset($distance);
         }
@@ -225,10 +249,13 @@ switch ($do) {
                     mkdir($appConfig['image_dir'] . '/' . $regionName, 0777);
                 }
                 
+                
+                
                 $regions = $roadsModel->getDirectory($imageVal['km']);
                 if ($regions) {
+                    
                     $regionName = $regions[0]['dirname'];
-                    $regionNameRu = $regions[0]['nameRu'];
+                    $regionNameRu = (isset($regions[0]['nameRu']) ? $regions[0]['nameRu'] : $regions[0]['dirname']);
                     if (count($regions > 0)) {
                         $regInterval = $regions[0]['end'] - $regions[0]['start'];
 
@@ -241,16 +268,13 @@ switch ($do) {
                         }
                     }
                     
-                    $regionCanvas = $maskImage->getCanvas();
-                    $regionCanvas->useFont($appConfig['font'], 12, $textColor);
-                    $regionCanvas->writeText( 'left + 280', 'bottom - 50', $regionNameRu);
 
                     if (!file_exists($appConfig['image_dir'] . '/' .$regionName)) {
                         mkdir($appConfig['image_dir'] . '/' . $regionName, 0777);
                     }
                 }
                 
-                $maskImage = imgProcessing($imageVal, $appConfig, $fioText);
+                $maskImage = imgProcessing($imageVal, $appConfig, $fioText, $regionName);
 
                 $renderFileName = getRenderFileName($info['filename']);
 
@@ -266,15 +290,14 @@ switch ($do) {
                 }
                 unset($maskImage, $newImage);
                 // Удаляем старый файл
-                unlink($imageVal['src']);
+                //unlink($imageVal['src']);
             }
         }
         break;
     case 'handle_priority':
         //include 'WideImage/WideImage.php';
-        $files = getFiles($appConfig['upload_spec_dir']);
-        print_r($files);
         
+        $files = getFiles($appConfig['upload_spec_dir']);
         $outputDir = $appConfig['image_dir'] . '/' . trim($appConfig['render_spec_dir'], '/') . '/';
         if ($files) {
             foreach ($files as $filePath) {
@@ -285,13 +308,9 @@ switch ($do) {
                     $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
                     
                     $paths = explode('/', mb_substr($dir, $pos));
-                    print_r($paths);
-                    foreach ($paths as $key => $pathItem) {
-                        $pathItem = trim($pathItem, '/');
-                        if ($key > 0) $parentFolder = (isset($parentFolder) ? '' : '') . $pathItem;
-                        var_dump(file_exists($outputDir . $pathItem));
-                            
-                        
+                    $pathItem = mb_substr($dir, $pos);
+                    if (!file_exists($outputDir . $pathItem)) {
+                        mkdir($outputDir . $pathItem);
                     }
                 }
             }

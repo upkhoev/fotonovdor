@@ -482,7 +482,7 @@ function getRenderFileName($filename) {
  * @param string $fioText
  * @return array
  */
-function imgProcessing($imageVal, $appConfig, $fioText) {
+function imgProcessing($imageVal, $appConfig, $fioText, $regionNameRu) {
     //include 'WideImage/WideImage.php';
     if (!class_exists('WideImage')) {
         exit('Class WideImage not found!');
@@ -565,6 +565,7 @@ function imgProcessing($imageVal, $appConfig, $fioText) {
     $canvas = $newImage->getCanvas();
     $canvas->useFont($appConfig['font'], 12, $textColor);
     $canvas->writeText('left + 950', 'bottom - ' . $bottom, $text);
+    
 
     // Координаты
     $choordCanvas = $newImage->getCanvas();
@@ -580,6 +581,10 @@ function imgProcessing($imageVal, $appConfig, $fioText) {
 
     $logoOffSet = 5;
     $maskImage = $newImage->merge($bigMask, 'right - ' . $logoOffSet, 'bottom', 100);
+    
+    $regionCanvas = $maskImage->getCanvas();
+    $regionCanvas->useFont($appConfig['font'], 12, $textColor);
+    $regionCanvas->writeText( 'left + 280', 'bottom - 50', $regionNameRu);
     return $maskImage;
 }
 
@@ -592,7 +597,7 @@ function convertToCp1251($str) {
  * @param array $distance Массив точек(столбцов)
  * @param array $point Точка искомая
  */
-function prepareDistance($distance, &$point) {
+function prepareDistance($distance, $roads, &$point) {
     
         $newdistance = array();
         foreach ($distance as $row){
