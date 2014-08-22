@@ -304,7 +304,7 @@ switch ($do) {
                 }
                 unset($maskImage, $newImage);
                 // Удаляем старый файл
-                //unlink($imageVal['src']);
+                unlink($imageVal['src']);
             }
         }
         break;
