@@ -129,11 +129,41 @@ switch ($do) {
         include 'WideImage/WideImage.php';
         //include  $appConfig['path_to_swift'] . 'swift_required.php';
         $emailDataFile = 'emaildata.txt';
+        $files = array();
         if (isset($_REQUEST['files'])) {
             $files = $_REQUEST['files'];
         } else {
-            $files = getFiles($appConfig['upload_dir']);
+            // Получаем поток №2
+            if (isset($appConfig['upload_spec_dir']) && isset($appConfig['priority_spec_paths']) && !empty($appConfig['priority_spec_paths'])) {
+                foreach ($appConfig['priority_spec_paths'] as $path) {
+                    $path = trim($appConfig['upload_spec_dir'], '/') . '/' . convertToCp1251($path);
+					
+                    $potok2 = getFiles($path);
+                    $outputDir = $appConfig['image_dir'] . '/';
+                    if ($potok2 && !empty($potok2)) {
+                        foreach ($potok2 as $filePath) {
+                            if (file_exists($filePath)) {
+                                $pathInfo = pathinfo($filePath); 
+                                $dir = $pathInfo['dirname'];
+                                // Обрезаем путь
+                                $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+
+                                $pathItem = mb_substr($dir, $pos);
+                                if (!file_exists($outputDir . $pathItem)) {
+                                    mkdir($outputDir . $pathItem);
+                                }
+                                $files[] = $filePath;
+                            }
+                        }
+                    }
+                }
+            }
+            $potok1 = getFiles($appConfig['upload_dir']);
+            if ($potok1) {
+                $files = array_merge($files, $potok1);
+            }
         }
+        
         $roadsModel = new Roads($appConfig);
         // Километровые столбики
         $distance = $roadsModel->getKilometrs();
@@ -156,7 +186,6 @@ switch ($do) {
                     $msg .= '[' . date("r") . '] [error] ';
                     $msg .= 'Имя файла: ' . $imgPath;
                     $msg .= ' : ' . $file->displayError(). "\n";
-
 
                     /* Перемещаем файл */
                     $path_parts = pathinfo($imgPath);
@@ -191,70 +220,7 @@ switch ($do) {
         /* Определение расстояния */
         if (!empty($distance) && !empty($images)) {
             foreach ($images as &$point) {
-                $newdistance = array();
-                foreach ($distance as $row){
-
-                    // Вычисляем расстояние между двумя точками
-                    $newdistance[$row['kmid']] = getDistance(
-                            $row['gpslatitude'],
-                            $row['gpslongitude'],
-                            $point['gpslatitude'],
-                            $point['gpslongitude']
-                        );
-                }
-                $notsort = $newdistance;
-
-                asort($newdistance);
-
-                reset($newdistance);
-                $kmid = key($newdistance);
-                $minValue = $newdistance[$kmid];
-                next($newdistance);
-                $seckmId = key($newdistance);
-                // Вычисляем какой столб от начала(дальше или ближе)
-                if ($kmid - $seckmId > 0) {
-                    // столб дальний
-                    $point['plus'] = TRUE;
-                } else {
-                    // столб ближний
-                    $point['plus'] = FALSE;
-                }
-
-                $km = "";
-                foreach ($distance as $row) {
-                    if ($kmid == $row['kmid']) {
-                        $roadId = $row['roadid'];
-                        $kmValue = $row['km'];
-                        $km = $row['title'];
-                    }
-                }
-                if (!$point['plus']) {
-                    $kmValue = $kmValue - 1;
-                }
-
-                $roadName = "";
-                foreach ($roads as $road) {
-                    if ($roadId == $road['roadid']) {
-                        $roadName = $road['title'];
-                    }
-                }
-                
-                if (floor($minValue) < 1000) {
-                    if (!$point['plus']) {
-                        $point['dist'] = 1000 - floor($minValue);
-                    } else {
-                        $point['dist'] = floor($minValue);
-                    }
-                } else {
-                    $point['dist'] = '';
-                }
-                
-                
-
-                $point['kmtitle'] = $km;
-                $point['km'] = $kmValue;
-                $point['roadid'] = $roadId;
-                $point['road'] = $roadName;
+                prepareDistance($distance, $roads, $point);
             }
             unset($distance);
         }
@@ -272,90 +238,7 @@ switch ($do) {
             $maxLodId = $roadsModel->getMaxLogId();
             foreach ($images as &$imageVal) {
                 $info = pathinfo($imageVal['src']);
-                $image = WideImage::load($imageVal['src']);
-                list($width, $height, $type, $attr) = getimagesize($imageVal['src']);
-                $imgRatio = round($width / $height, 2);
-                $widescreen = 1.77;
-                if ($appConfig['crop_img_to_widescreen'] && $imgRatio < $widescreen) {
-                    $cropedImg = $image->crop('center', 'bottom', $width, round($width / $widescreen) - $appConfig['footer_bg_color']);
-                    unset($image);
-                } else {
-                    $cropedImg = $image;
-                }
-
-                $resizedImg = $cropedImg->resize(NULL, $appConfig['down_scaling_height']);
-
-                $rgb = hex2rgb($appConfig['footer_bg_color']);
-                $white = $resizedImg->allocateColor(
-                        $rgb[0],
-                        $rgb[1],
-                        $rgb[2]
-                    );
-
-                // Добавляем внизу плашку
-                $cropImg = $resizedImg->resizeCanvas('100%', '100%+' . $appConfig['footer_height'], 0, 0, $white);
-
-                // обрезаем
-                $newImage = $cropImg->crop(0, $appConfig['footer_height'], '100%', '100%');
-
-                $choord1 = $imageVal['geolat'];
-                $choord2 = $imageVal['geolong'];
-                $text = $imageVal['road'] . ' '
-                     . mb_substr($imageVal['kmtitle'], mb_strpos($imageVal['kmtitle'], 'км')) .' '. ($imageVal['plus'] ? '+' : '-') . " {$imageVal['dist']} м.";
-                if (isset($appConfig['color_text'])) {
-                    $hexTxtColor = hex2rgb($appConfig['color_text']);
-                    $textColor = $newImage->allocateColor($hexTxtColor[0], $hexTxtColor[1], $hexTxtColor[2]);
-                } else {
-                    $textColor = $newImage->allocateColor(0, 0, 0);
-                }
-
-                $bottom = 15;
-                /* 1 */
-                $text = 'км';
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], 24, $textColor);
-                $canvas->writeText('left + 10', 'bottom - ' . $bottom, $text);
-                //$canvas->writeText('right - 220', 'bottom - 40', $text2);
-
-                /* Столб */
-                //$text = mb_substr($imageVal['km'], mb_strpos($imageVal['km'], 'км'));
-                $text = $imageVal['km'];
-                $count = 1;
-                //$text = str_replace('км', '', $text, $count);
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], $appConfig['font_size'], $textColor);
-                $canvas->writeText('left + 60', 'bottom - ' . $bottom, $text);
-
-                /* Расстояние до столба */
-                $text = '+' . $imageVal['dist'];
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], 24, $textColor);
-                $canvas->writeText('left + 185', 'bottom - ' . $bottom, $text);
-
-                /* Название дороги */
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], 12, $textColor);
-                $canvas->writeText('left + 280', 'bottom - ' . $bottom, $imageVal['road']);
-
-                /* Дата */
-                $time = strtotime($imageVal['date']);
-                $month = getRuMonth(date('m', $time));
-                $text = date('d', $time) .'-'. mb_strtoupper(mb_substr($month, 0, 1)) . mb_substr($month, 1) .'-'. date('Y', $time);
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], 32, $textColor);
-                $canvas->writeText('left + 565', 'bottom - ' . $bottom, $text);
-
-                /* Время */
-                $text = date('H:i:s');
-                $canvas = $newImage->getCanvas();
-                $canvas->useFont($appConfig['font'], 12, $textColor);
-                $canvas->writeText('left + 950', 'bottom - ' . $bottom, $text);
-
-                // Координаты
-                $choordCanvas = $newImage->getCanvas();
-                $choordCanvas->useFont($appConfig['font'], 12, $textColor);
-                $choordCanvas->writeText( 'left + 1025', 'bottom - ' . $bottom,  "($choord1, $choord2)");
-
+                
                 /* Поиск ФИО */
                 $fioText = "";
                 if ($photographer) {
@@ -365,25 +248,20 @@ switch ($do) {
                         }
                     }
                 }
-                $authorCanvas = $newImage->getCanvas();
-                $authorCanvas->useFont($appConfig['font'], 12, $textColor);
-                $authorCanvas->writeText( 'left + 950', 'bottom - 40', $fioText);
-
-                $mask = WideImage::load($appConfig['logo_path']);
-                $bigMask = $mask->resize('35%', '35%');
-
-                $logoOffSet = 5;
-                $maskImage = $newImage->merge($bigMask, 'right - ' . $logoOffSet, 'bottom', 100);
-
+                
+                /* Определяем регион куда записывать файл. к какой папке относится изобрж. */
                 $regionName = 'undefined';
                 if (!file_exists($appConfig['image_dir'] . '/' .$regionName)) {
                     mkdir($appConfig['image_dir'] . '/' . $regionName, 0777);
                 }
-                /* Определяем к какой папке относится изобрж. */
+                
+                
+                
                 $regions = $roadsModel->getDirectory($imageVal['km']);
                 if ($regions) {
+                    
                     $regionName = $regions[0]['dirname'];
-                    $regionNameRu = $regions[0]['nameRu'];
+                    $regionNameRu = (isset($regions[0]['nameRu']) ? $regions[0]['nameRu'] : $regions[0]['dirname']);
                     if (count($regions > 0)) {
                         $regInterval = $regions[0]['end'] - $regions[0]['start'];
 
@@ -396,39 +274,57 @@ switch ($do) {
                         }
                     }
                     
-                    $regionCanvas = $maskImage->getCanvas();
-                    $regionCanvas->useFont($appConfig['font'], 12, $textColor);
-                    $regionCanvas->writeText( 'left + 280', 'bottom - 50', $regionNameRu);
 
                     if (!file_exists($appConfig['image_dir'] . '/' .$regionName)) {
                         mkdir($appConfig['image_dir'] . '/' . $regionName, 0777);
                     }
                 }
+                
+                $maskImage = imgProcessing($imageVal, $appConfig, $fioText, $regionName);
 
+                $renderFileName = getRenderFileName($info['filename']);
 
-                //$renderFileName = $maxLodId . '_render.jpg';
-                $renderFileName = str_replace(" ", "_", $info['filename']) . '_' . date('d-m-Y') . '_' . uniqid() . '.jpg';
-
-                //str_replace(" ", "_", $info['filename'])
                 $renderPathFile = $appConfig['image_dir'] . '/'
                     . (isset($regionName) ? $regionName . '/' : '') . $renderFileName;
                 $maskImage->saveToFile($renderPathFile);
 
                 $roadsModel->writeLog($maxLodId, $info['filename'] . '.' . $info['extension'], $imageVal['km']);
-
                 $maxLodId++;
+                
                 if ($saveToTysyacha) {
                     $maskImage->saveToFile($appConfig['copyDir'] . '/'. $renderFileName);
                 }
                 unset($maskImage, $newImage);
                 // Удаляем старый файл
-                unlink($imageVal['src']);
-                /*echo '<a href="' . $renderPathFile . '" target="_blank" title="Открыть в новом окне" style="max-width: 100%;">'
-                        . '<img src="' . $renderPathFile . '" width="100%" alt=""></a>';*/
+                //unlink($imageVal['src']);
             }
         }
         break;
-
+    case 'handle_priority':
+        //include 'WideImage/WideImage.php';
+        
+        $files = getFiles($appConfig['upload_spec_dir']);
+        $outputDir = $appConfig['image_dir'] . '/' . trim($appConfig['render_spec_dir'], '/') . '/';
+        if ($files) {
+            foreach ($files as $filePath) {
+                if (file_exists($filePath)) {
+                    $pathInfo =pathinfo($filePath); 
+                    $dir = $pathInfo['dirname'];
+                    // Обрезаем путь
+                    $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+                    
+                    $paths = explode('/', mb_substr($dir, $pos));
+                    $pathItem = mb_substr($dir, $pos);
+                    if (!file_exists($outputDir . $pathItem)) {
+                        mkdir($outputDir . $pathItem);
+                    }
+                }
+            }
+        }
+        
+        
+        //mkdir($appConfig['image_dir'] . '/' . $appConfig['render_spec_dir'] . '/' . $dirs[2]);
+        break;
     case 'test':
         var_dump(file_exists('old/'));
         //sendEmailLogData();

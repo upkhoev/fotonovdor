@@ -1,6 +1,7 @@
 upload/
 old/
 img/
+rendered/
 cache/
 Noveishaya_Tysyacha/
 config/db.php
