@@ -129,32 +129,37 @@ switch ($do) {
         include 'WideImage/WideImage.php';
         //include  $appConfig['path_to_swift'] . 'swift_required.php';
         $emailDataFile = 'emaildata.txt';
+        $files = array();
         if (isset($_REQUEST['files'])) {
             $files = $_REQUEST['files'];
         } else {
-            $files = getFiles($appConfig['upload_dir']);
-        }
-        
-        if (isset($appConfig['upload_spec_dir']) && isset($appConfig['render_spec_dir'])) {
-            $potok2 = getFiles($appConfig['upload_spec_dir']);
-            $outputDir = $appConfig['image_dir'] . '/' . trim($appConfig['render_spec_dir'], '/') . '/';
-            if ($potok2) {
-                foreach ($potok2 as $filePath) {
-                    if (file_exists($filePath)) {
-                        $pathInfo =pathinfo($filePath); 
-                        $dir = $pathInfo['dirname'];
-                        // Обрезаем путь
-                        $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+            // Получаем поток №2
+            if (isset($appConfig['upload_spec_dir']) && isset($appConfig['priority_spec_paths']) && !empty($appConfig['priority_spec_paths'])) {
+                foreach ($appConfig['priority_spec_paths'] as $path) {
+                    $path = trim($appConfig['upload_spec_dir'], '/') . '/' . $path;
+                    $potok2 = getFiles($path);
+                    $outputDir = $appConfig['image_dir'] . '/';
+                    if ($potok2 && !empty($potok2)) {
+                        foreach ($potok2 as $filePath) {
+                            if (file_exists($filePath)) {
+                                $pathInfo = pathinfo($filePath); 
+                                $dir = $pathInfo['dirname'];
+                                // Обрезаем путь
+                                $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
 
-                        $paths = explode('/', mb_substr($dir, $pos));
-                        $pathItem = mb_substr($dir, $pos);
-                        if (!file_exists($outputDir . $pathItem)) {
-                            mkdir($outputDir . $pathItem);
+                                $pathItem = mb_substr($dir, $pos);
+                                if (!file_exists($outputDir . $pathItem)) {
+                                    mkdir($outputDir . $pathItem);
+                                }
+                                $files[] = $filePath;
+                            }
                         }
-                        $files[] = $filePath;
                     }
                 }
-                
+            }
+            $potok1 = getFiles($appConfig['upload_dir']);
+            if ($potok1) {
+                $files = array_merge($files, $potok1);
             }
         }
         
