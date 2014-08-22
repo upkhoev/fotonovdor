@@ -6,13 +6,13 @@
  * and open the template in the editor.
  */
 
-$config['upload_dir'] = 'upload/files';
+$config['upload_dir'] = 'upload/kucha';
 $config['upload_spec_dir'] = 'upload/Ph_Upload_Special';
-$config['render_spec_dir'] = 'Ph_Upload_Special_Ren';
-$config['priority_dirs'] = array(
+$config['priority_spec_paths'] = array(
     'Важное',
-    'Для Георгия Александровича'
+    'ДТП'
 );
+$config['render_spec_dir'] = 'Ph_Upload_Special_Ren';
 
 $config['max_rendered_files'] = 10;
 $config['image_dir'] = 'rendered';
