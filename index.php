@@ -285,9 +285,10 @@ switch ($do) {
                 $renderFileName = getRenderFileName($info['filename']);
                 
                 if (mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir'])) {
-                    $pos = mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+                    $imgPathInfo = pathinfo($imageVal['src']);
+                    $pos = mb_strrpos($imgPathInfo['dirname'], $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
 
-                    $pathItem = mb_substr($imageVal['src'], $pos);
+                    $pathItem = mb_substr($imgPathInfo['dirname'], $pos);
                     $renderPathFile = $appConfig['image_dir'] . '/' . trim($pathItem, '/') . '/' . $renderFileName;
                 } else {
                     $renderPathFile = $appConfig['image_dir'] . '/'
