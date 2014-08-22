@@ -283,9 +283,17 @@ switch ($do) {
                 $maskImage = imgProcessing($imageVal, $appConfig, $fioText, $regionName);
 
                 $renderFileName = getRenderFileName($info['filename']);
+                
+                if (mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir'])) {
+                    $pos = mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
 
-                $renderPathFile = $appConfig['image_dir'] . '/'
-                    . (isset($regionName) ? $regionName . '/' : '') . $renderFileName;
+                    $pathItem = mb_substr($imageVal['src'], $pos);
+                    $renderPathFile = $appConfig['image_dir'] . '/' . trim($pathItem, '/') . '/' . $renderFileName;
+                } else {
+                    $renderPathFile = $appConfig['image_dir'] . '/'
+                        . (isset($regionName) ? $regionName . '/' : '') . $renderFileName;
+                }
+                
                 $maskImage->saveToFile($renderPathFile);
 
                 $roadsModel->writeLog($maxLodId, $info['filename'] . '.' . $info['extension'], $imageVal['km']);
