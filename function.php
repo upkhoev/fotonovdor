@@ -89,6 +89,8 @@ class View {
 
 class Roads {
     private $db = FALSE;
+    
+    private $threadsTbl = 'threads';
 
     public function __construct($appConfig) {
 
@@ -195,6 +197,29 @@ class Roads {
         $this->db->query("INSERT INTO logs(logid, filename, datetime, km) VALUES ($lodId, '$filename', " . time() . ", $km)");
         //var_dump($this->db->error);
         return $this->db->affected_rows;
+    }
+    
+    public function setThread($fileName)
+    {
+        $tbl = $this->threadsTbl;
+        $fileName = $this->db->real_escape_string($fileName);
+        echo $fileName;
+        $this->db->query("INSERT INTO `{$tbl}`(filepath, datetime) VALUES ('" . $fileName . "', '" . time() . "')");
+        return $this->db->affected_rows;
+    }
+    
+    public function searchInThread($fileName, $uptime = NULL)
+    {
+        $tbl = $this->threadsTbl;
+        $fileName = $this->db->real_escape_string($fileName);
+        $query = "SELECT * FROM `{$tbl}` WHERE filepath='" . $fileName . "'";
+        if ($uptime !== NULL) {
+            $query .= " AND datetime >= ".$uptime;
+        }
+        
+        $result = $this->db->query($query);
+        
+        return ($result->num_rows > 0 ? TRUE : FALSE);
     }
 }
 
@@ -591,6 +616,11 @@ function imgProcessing($imageVal, $appConfig, $fioText, $regionNameRu) {
 function convertToCp1251($str) {
     return mb_convert_encoding($str, 'Windows-1251', 'UTF-8');
 }
+
+function convertToUtf8($str) {
+    return mb_convert_encoding($str, 'UTF-8', 'Windows-1251');
+}
+
 /**
  * Функция вычисляет ближайший столб и определяет расстояние до ближ. точки
  * 

@@ -60,34 +60,52 @@ switch ($do) {
         $width = 230;
         $files = getFiles($appConfig['upload_dir']);
         echo '<div class="row">';
-		$i = 0;
-        foreach ( $files as $key => $val ) {
-			if ($i < 20) {
-            $imgPath = $val;
-            $res = getAttrDataImg($imgPath);
+        $i = 0;
+        
+        $perPage = 5;
+        
+        $page = (isset($_GET['page']) ? (int) $_GET['page'] : 1);
+        for ( $j = ($perPage * ($page - 1)); $j < $perPage * $page; $j++) {
+            if (isset($files[$j])) {
+                $val = $files[$j];
+                $imgPath = $val;
+                $res = getAttrDataImg($imgPath);
 
-            $aImgPath = $val;
+                $aImgPath = $val;
 
-            $pathInfo = pathinfo($aImgPath);
-            $name = str_replace(" ", "_", $pathInfo['filename']);
-            $thumbFile = $appConfig['cache_dir'] . '/' . $name . '_thumb.' . $pathInfo['extension'];
+                $pathInfo = pathinfo($aImgPath);
+                $name = str_replace(" ", "_", $pathInfo['filename']);
+                $thumbFile = $appConfig['cache_dir'] . '/' . $name . '_thumb.' . $pathInfo['extension'];
 
-            if (!file_exists($thumbFile)) {
-                $image = WideImage::load($aImgPath);
-                $resizedImg = $image->resize($width);
-                $resizedImg->saveToFile($thumbFile);
-                unset($image);
+                if (!file_exists($thumbFile)) {
+                    $image = WideImage::load($aImgPath);
+                    $resizedImg = $image->resize($width);
+                    $resizedImg->saveToFile($thumbFile);
+                    unset($image);
+                }
+
+                $appView->load('prepare_img', array(
+                    'origin' => $imgPath,
+                    'val'    => $thumbFile,
+                    'error'  => $res
+                ));
+                $i++;
             }
-
-            $appView->load('prepare_img', array(
-                'origin' => $imgPath,
-                'val'    => $thumbFile,
-                'error'  => $res
-            ));
-			$i++;
-			}
         }
+        
+        $numPages = 4;
         echo '</div>';
+        echo '<div class="row"><ul class="pagination">';
+        echo '<li class="'.($page <= 1 ? 'disabled' : '').'"><a href="?do=newfiles&amp;page='.($page - 1).'">&laquo;</a></li>';
+        for ($i=0; $i < ceil(count($files) / $perPage); $i++) {
+            $class = '';
+            if ($page == $i + 1) {
+                $class .= ' active';
+            }
+            echo '<li class="' . $class . '"><a href="?do=newfiles&amp;page='.($i+1).'">' . ($i+1) . ' </a></li>';
+        }
+        echo '<li class="'.(count($files)-($perPage*$page) <= 0 ? 'disabled' : '').'"><a href="?do=newfiles&amp;page='.($page + 1).'">&raquo;</a></li>';
+        echo '</ul></div>';
         break;
 
     case "files_list":
@@ -160,6 +178,8 @@ switch ($do) {
             }
             $potok1 = getFiles($appConfig['upload_dir']);
             if ($potok1) {
+                
+                
                 $files = array_merge($files, $potok1);
             }
         }
@@ -170,14 +190,25 @@ switch ($do) {
         // Дороги
         $roads = $roadsModel->roads();
         $limit = $appConfig['max_rendered_files'];
-        $i = 0;
+        
         $msg = "";
-        if (!file_exists('old/')) {
+        $badDir = 'old/';
+        if ( !file_exists($badDir) ) {
             mkdir("old", 0777);
         }
-        for ($i = 0; $i <= $limit; $i++) {
-            if (isset($files[$i])) {
-                $item = $files[$i];
+        
+        $i = 0;
+        while ($i < $limit && isset($files[$i])) {
+            
+            $item = $files[$i];
+            
+            if ($appConfig['convertToUtf8']) {
+                $item = convertToUtf8($item);
+            }
+
+            // Поиск файла в потоке
+            if ( !$roadsModel->searchInThread($item, time() - 600) ) {
+                $roadsModel->setThread($item);
                 $imgPath = ltrim($item, '/');
                 $file = new File($imgPath);
 
@@ -189,7 +220,7 @@ switch ($do) {
 
                     /* Перемещаем файл */
                     $path_parts = pathinfo($imgPath);
-                    rename( $imgPath, 'old/' . $path_parts['basename'] );
+                    rename( $imgPath, $badDir . $path_parts['basename'] );
                     /*copy( $imgPath, 'old/' . $path_parts['basename'] );
                     unlink($imgPath);*/
                     echo '<p class="label label-danger">[' . date("r") . '] '
@@ -199,6 +230,7 @@ switch ($do) {
                     $images[] = $fileData;
                     //echo '<p class="label label-success">' . $imgPath . '</p><br>';
                 }
+                $i++;
             }
         }
         
@@ -225,12 +257,9 @@ switch ($do) {
             unset($distance);
         }
 
-
-
         if (isset($images) && !empty($images)) {
             $saveToTysyacha = TRUE;
             if ($saveToTysyacha) {
-
                 clearCopyDir($appConfig['copyDir'], $appConfig['maxCopyFiles'] - count($images));
                 // Копируем файл
             }
@@ -331,18 +360,24 @@ switch ($do) {
             }
         }
         
-        
-        //mkdir($appConfig['image_dir'] . '/' . $appConfig['render_spec_dir'] . '/' . $dirs[2]);
         break;
-    case 'test':
-        var_dump(file_exists('old/'));
-        //sendEmailLogData();
-        /*include  $appConfig['path_to_swift'] . 'swift_required.php';
-        $emailDataFile = 'emaildata.txt';
-        $efile = New File($emailDataFile);
-        $efile->open("r+");
-        var_dump($efile->countLines());
-        $efile->closeFp();*/
+    case 'update_database':
+        if (!$mysqli) {
+            exit('database connection fail!<br>');
+        }
+        $query = "CREATE TABLE IF NOT EXISTS `threads` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `filepath` varchar(300) NOT NULL,
+  `datetime` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
+        $mysqli->query($query);
+        $result = $mysqli->query("SHOW TABLES LIKE 'threads'");
+        if ($result->num_rows == 1) {
+            echo 'Обновление выполнено успешно<br>';
+        } else {
+            echo 'Table `threads` does not exist<br>';
+        }
         break;
     case 'setting':
         $roadsModel = new Roads($appConfig);

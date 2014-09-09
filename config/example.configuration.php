@@ -14,6 +14,7 @@ $config['priority_spec_paths'] = array(
 );
 $config['render_spec_dir'] = 'Ph_Upload_Special_Ren';
 
+$config['convertToUtf8'] = TRUE;
 $config['max_rendered_files'] = 10;
 $config['image_dir'] = 'rendered';
 $config['logo_path'] = 'PastedGraphic-1.png';
