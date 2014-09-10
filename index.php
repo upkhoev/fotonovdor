@@ -1,15 +1,16 @@
 <?php
+
+require_once 'include/init.php';
 $start = microtime(true);
-require_once 'function.php';
 
 $appView = View::getInstance();
 $mysqli = db::getInstance($appConfig['db']);
-
+$indexFile = 'index.php';
 $menu = array(
-    'index.php?do=files'     => 'список обработанных изображений',
-    'index.php?do=newfiles'  => 'список загруженных изображений',
-    'index.php?do=handle_imgs' => 'запуск обработчика',
-    'index.php?do=setting'   => 'Настройки'
+    $indexFile . '?do=files'     => 'список обработанных изображений',
+    $indexFile . '?do=newfiles'  => 'список загруженных изображений',
+    $indexFile . '?do=handle_imgs' => 'запуск обработчика',
+    $indexFile . '?do=setting'   => 'Настройки'
 );
 
 $appView->load('header', array('menu' => $menu));
