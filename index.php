@@ -155,7 +155,7 @@ switch ($do) {
             // Получаем поток №2
             if (isset($appConfig['upload_spec_dir']) && isset($appConfig['priority_spec_paths']) && !empty($appConfig['priority_spec_paths'])) {
                 foreach ($appConfig['priority_spec_paths'] as $path) {
-                    $path = trim($appConfig['upload_spec_dir'], '/') . '/' . convertToCp1251($path);
+                    $path = trim($appConfig['upload_spec_dir'], '/') . '/' . $path;
 					
                     $potok2 = getFiles($path);
                     $outputDir = $appConfig['image_dir'] . '/';

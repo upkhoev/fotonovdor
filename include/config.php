@@ -10,6 +10,13 @@ class config {
     private static $configDir = 'config';
     protected static $config = NULL;
     
+    protected static $cfgFiles = array(
+        'configuration.php',
+        'db.php',
+        'smtp.php'
+    );
+
+
     private function __construct() {}
     private function __clone() {}
     
@@ -19,9 +26,9 @@ class config {
         }
         
         $configDir = self::$configDir;
-        include_once $configDir . '/configuration.php';
-        include_once $configDir . '/db.php';
-        include_once $configDir . '/smtp.php';
+        foreach (self::$cfgFiles as $file) {
+            include_once rtrim($configDir, '/') . '/' . $file;
+        }
         if (isset($config)) {
             
             if (isset($config['db'])) {
