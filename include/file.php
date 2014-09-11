@@ -24,11 +24,17 @@ class File {
             return FALSE;
         }
 
-        if (file_exists($pathToFile)) {
-            $this->file = dirname(__FILE__) . '/' . ltrim($pathToFile, '/');
-        } else {
-            return FALSE;
+        if (!file_exists($pathToFile)) {
+            $this->createFile(dirname(__FILE__) . '/' . ltrim($pathToFile, '/'));
         }
+        $this->file = dirname(__FILE__) . '/' . ltrim($pathToFile, '/');
+    }
+    
+    private function createFile($fileName)
+    {
+        $fp = fopen($fileName, "w");
+        fwrite($fp, "");
+        fclose($fp);
     }
 
     public function setError($msg)
@@ -70,6 +76,9 @@ class File {
 
     public function writeToFile($msg)
     {
+        if ( !$this->fp ) {
+            return FALSE;
+        }
         fwrite($this->fp, $msg . "\n");
     }
     

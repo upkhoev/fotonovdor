@@ -168,7 +168,10 @@ switch ($do) {
                                 $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
 
                                 $pathItem = mb_substr($dir, $pos);
-                                if (!file_exists($outputDir . $pathItem)) {
+                                
+                                if (!is_writable ($outputDir)) {
+                                    echo '<p style="font-size:24px;color:red">Папка не доступна для записи : ' . $outputDir . '</p>';
+                                } else if (!file_exists($outputDir . $pathItem)) {
                                     mkdir($outputDir . $pathItem);
                                 }
                                 $files[] = $filePath;
@@ -245,9 +248,11 @@ switch ($do) {
         
         if (isset($msg) && !empty($msg)) {
             $efile = New File($emailDataFile);
-            $efile->open();
-            $efile->writeToFile($msg);
-            $efile->closeFp();
+            if ($efile) {
+                $efile->open();
+                $efile->writeToFile($msg);
+                $efile->closeFp();
+            }
         }
 
         /* Определение расстояния */
