@@ -3,7 +3,7 @@
 function sendEmailLogData() {
     $appConfig = config::load();
     include  $appConfig['path_to_swift'] . 'swift_required.php';
-    $emailDataFile = 'emaildata.txt';
+    $emailDataFile = APPPATH . 'emaildata.txt';
     
     $efile = New File($emailDataFile);
     $efile->open("r+");

@@ -1,5 +1,5 @@
 <?php
-
+define('APPPATH', rtrim(dirname(__FILE__), '/') . '/');
 require_once 'include/init.php';
 $start = microtime(true);
 
@@ -147,7 +147,7 @@ switch ($do) {
     case 'handle_imgs':
         include 'WideImage/WideImage.php';
         //include  $appConfig['path_to_swift'] . 'swift_required.php';
-        $emailDataFile = 'emaildata.txt';
+        $emailDataFile = APPPATH . 'emaildata.txt';
         $files = array();
         if (isset($_REQUEST['files'])) {
             $files = $_REQUEST['files'];

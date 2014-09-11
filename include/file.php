@@ -25,9 +25,9 @@ class File {
         }
 
         if (!file_exists($pathToFile)) {
-            $this->createFile(dirname(__FILE__) . '/' . ltrim($pathToFile, '/'));
+            $this->createFile($pathToFile);
         }
-        $this->file = dirname(__FILE__) . '/' . ltrim($pathToFile, '/');
+        $this->file = $pathToFile;
     }
     
     private function createFile($fileName)
