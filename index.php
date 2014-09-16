@@ -180,7 +180,7 @@ switch ($do) {
                                 $newDir = $appConfig['render_spec_dir'] . '/' . ltrim($pathItem, '/');
                                 // Создаем папки
                                 if (!file_exists($newDir)) {
-                                    if (!mkdir($newDir)) {
+                                    if (!mkdir($newDir, 0777, TRUE)) {
                                         log_message ('Failed to create a folder ' . $newDir);
                                     }
                                 }
@@ -361,7 +361,7 @@ switch ($do) {
         //include 'WideImage/WideImage.php';
         
         $files = getFiles($appConfig['upload_spec_dir']);
-        $outputDir = $appConfig['image_dir'] . '/' . trim($appConfig['render_spec_dir'], '/') . '/';
+        $outputDir = trim($appConfig['render_spec_dir'], '/') . '/';
         if ($files) {
             foreach ($files as $filePath) {
                 if (file_exists($filePath)) {
@@ -373,7 +373,7 @@ switch ($do) {
                     $paths = explode('/', mb_substr($dir, $pos));
                     $pathItem = mb_substr($dir, $pos);
                     if (!file_exists($outputDir . $pathItem)) {
-                        mkdir($outputDir . $pathItem);
+                        mkdir($outputDir . $pathItem, 0777, TRUE);
                     }
                 }
             }
@@ -381,11 +381,11 @@ switch ($do) {
         
         break;
     case 'test':
-        $filePath ='Ph_Upload_Special_Ren/ДТП/15 09 ДТП 460/F07_3730_16-09-2014_541735ca866b6.jpg';
+        $filePath ='rendered/Ph_Upload_Special_Ren/ДТП/15 09 ДТП 460/F07_3730_16-09-2014_541735ca866b6.jpg';
         $pathInfo = pathinfo($filePath); 
         $dir = $pathInfo['dirname'];
         print_r($dir);
-        if (!mkdir($dir)) {
+        if (!mkdir(convertToCp1251($dir), 0777, TRUE)) {
             log_message('TEST! Failed to create a folder! ' . $dir);
         }
         break;
