@@ -180,7 +180,7 @@ switch ($do) {
                                 $newDir = $appConfig['render_spec_dir'] . '/' . ltrim($pathItem, '/');
                                 // Создаем папки
                                 if (!file_exists($newDir)) {
-                                    if (mkdir($newDir)) {
+                                    if (!mkdir($newDir)) {
                                         log_message ('Failed to create a folder ' . $newDir);
                                     }
                                 }
