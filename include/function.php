@@ -501,3 +501,9 @@ function getRuMonth($mId) {
     }
     return $m;
 }
+
+function log_message($msg = '') {
+    if (!empty($msg) && function_exists('error_log') ) {
+        error_log ($msg);
+    }
+}

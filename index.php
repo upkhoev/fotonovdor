@@ -164,6 +164,7 @@ switch ($do) {
                     $outputDir = $appConfig['image_dir'] . '/';
                     if (!is_writable ($outputDir)) {
                         echo '<p style="font-size:24px;color:red">Папка не доступна для записи : ' . $outputDir . '</p>';
+                        log_message ('The folder is not writable:' . $newDir);
                     }
                     if ($potok2 && !empty($potok2)) {
                         foreach ($potok2 as $filePath) {
@@ -177,8 +178,11 @@ switch ($do) {
                                 $pathItem = mb_substr($dir, $pos);
                                 
                                 $newDir = $appConfig['render_spec_dir'] . '/' . ltrim($pathItem, '/');
+                                // Создаем папки
                                 if (!file_exists($newDir)) {
-                                    mkdir($newDir);
+                                    if (mkdir($newDir)) {
+                                        log_message ('Failed to create a folder ' . $newDir);
+                                    }
                                 }
                                 $files[] = $filePath;
                             }
@@ -371,6 +375,16 @@ switch ($do) {
             }
         }
         
+        break;
+    case 'test':
+        $filePath ='Ph_Upload_Special/ДТП/15 09 ДТП 460/F07_3730_16-09-2014_541735ca866b6.jpg';
+        $appConfig['upload_spec_dir'] = 'Ph_Upload_Special';
+        $pathInfo = pathinfo($filePath);
+        $dir = $pathInfo['dirname'];
+        $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
+        $pathItem = mb_substr($dir, $pos);
+
+        var_dump($pathItem);
         break;
     case 'update_database':
         if (!$mysqli) {
