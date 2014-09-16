@@ -504,6 +504,6 @@ function getRuMonth($mId) {
 
 function log_message($msg = '') {
     if (!empty($msg) && function_exists('error_log') ) {
-        error_log ($msg);
+        error_log ($msg, 0);
     }
 }

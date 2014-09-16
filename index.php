@@ -332,6 +332,10 @@ switch ($do) {
                     $pathItem = mb_substr($imgPathInfo['dirname'], $pos);
                     $renderPathFile = $appConfig['render_spec_dir']. '/' . trim($pathItem, '/')
                             . '/' . $renderFileName;
+                    if (!file_exists($appConfig['render_spec_dir']. '/' . trim($pathItem, '/'))) {
+                        error_log('Folder not found: ' . $appConfig['render_spec_dir']. '/' . trim($pathItem, '/'));
+                        exit;
+                    }
                 } else {
                     $renderPathFile = $appConfig['image_dir'] . '/'
                         . (isset($regionName) ? $regionName . '/' : '') . $renderFileName;
@@ -377,14 +381,13 @@ switch ($do) {
         
         break;
     case 'test':
-        $filePath ='Ph_Upload_Special/ДТП/15 09 ДТП 460/F07_3730_16-09-2014_541735ca866b6.jpg';
-        $appConfig['upload_spec_dir'] = 'Ph_Upload_Special';
-        $pathInfo = pathinfo($filePath);
+        $filePath ='Ph_Upload_Special_Ren/ДТП/15 09 ДТП 460/F07_3730_16-09-2014_541735ca866b6.jpg';
+        $pathInfo = pathinfo($filePath); 
         $dir = $pathInfo['dirname'];
-        $pos = mb_strrpos($dir, $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
-        $pathItem = mb_substr($dir, $pos);
-
-        var_dump($pathItem);
+        print_r($dir);
+        if (!mkdir($dir)) {
+            log_message('TEST! Failed to create a folder! ' . $dir);
+        }
         break;
     case 'update_database':
         if (!$mysqli) {
