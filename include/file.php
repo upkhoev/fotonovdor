@@ -23,7 +23,6 @@ class File {
             exit('Include exif.dll library and restart web server!');
             return FALSE;
         }
-
         if (!file_exists($pathToFile)) {
             $this->createFile($pathToFile);
         }

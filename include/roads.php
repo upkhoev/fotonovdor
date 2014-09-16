@@ -140,4 +140,13 @@ class Roads {
         
         return ($result->num_rows > 0 ? TRUE : FALSE);
     }
+    
+    public function removeInThread($fileName)
+    {
+        $tbl = $this->threadsTbl;
+        $fileName = $this->db->real_escape_string($fileName);
+        $query = "DELETE FROM `{$tbl}` WHERE filepath='" . $fileName . "'";
+                
+        $this->db->query($query);
+    }
 }

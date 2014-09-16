@@ -156,12 +156,19 @@ switch ($do) {
             if (isset($appConfig['upload_spec_dir']) && isset($appConfig['priority_spec_paths']) && !empty($appConfig['priority_spec_paths'])) {
                 foreach ($appConfig['priority_spec_paths'] as $path) {
                     $path = trim($appConfig['upload_spec_dir'], '/') . '/' . $path;
-					
+                    
+                    if ( isset($appConfig['convertToCp1251']) && $appConfig['convertToCp1251'] ) {
+                        $path = convertToCp1251($path);
+                    }
                     $potok2 = getFiles($path);
                     $outputDir = $appConfig['image_dir'] . '/';
+                    if (!is_writable ($outputDir)) {
+                        echo '<p style="font-size:24px;color:red">Папка не доступна для записи : ' . $outputDir . '</p>';
+                    }
                     if ($potok2 && !empty($potok2)) {
                         foreach ($potok2 as $filePath) {
                             if (file_exists($filePath)) {
+                                
                                 $pathInfo = pathinfo($filePath); 
                                 $dir = $pathInfo['dirname'];
                                 // Обрезаем путь
@@ -169,10 +176,9 @@ switch ($do) {
 
                                 $pathItem = mb_substr($dir, $pos);
                                 
-                                if (!is_writable ($outputDir)) {
-                                    echo '<p style="font-size:24px;color:red">Папка не доступна для записи : ' . $outputDir . '</p>';
-                                } else if (!file_exists($outputDir . $pathItem)) {
-                                    mkdir($outputDir . $pathItem);
+                                $newDir = $appConfig['render_spec_dir'] . '/' . ltrim($pathItem, '/');
+                                if (!file_exists($newDir)) {
+                                    mkdir($newDir);
                                 }
                                 $files[] = $filePath;
                             }
@@ -182,8 +188,6 @@ switch ($do) {
             }
             $potok1 = getFiles($appConfig['upload_dir']);
             if ($potok1) {
-                
-                
                 $files = array_merge($files, $potok1);
             }
         }
@@ -234,8 +238,8 @@ switch ($do) {
                     $images[] = $fileData;
                     //echo '<p class="label label-success">' . $imgPath . '</p><br>';
                 }
-                $i++;
             }
+            $i++;
         }
         
         $efile = New File($emailDataFile);
@@ -262,7 +266,7 @@ switch ($do) {
             }
             unset($distance);
         }
-
+        
         if (isset($images) && !empty($images)) {
             $saveToTysyacha = TRUE;
             if ($saveToTysyacha) {
@@ -289,8 +293,6 @@ switch ($do) {
                 if (!file_exists($appConfig['image_dir'] . '/' .$regionName)) {
                     mkdir($appConfig['image_dir'] . '/' . $regionName, 0777);
                 }
-                
-                
                 
                 $regions = $roadsModel->getDirectory($imageVal['km']);
                 if ($regions) {
@@ -319,16 +321,19 @@ switch ($do) {
 
                 $renderFileName = getRenderFileName($info['filename']);
                 
-                if (mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir'])) {
+                if (mb_strrpos($imageVal['src'], $appConfig['upload_spec_dir']) !== FALSE) {
                     $imgPathInfo = pathinfo($imageVal['src']);
                     $pos = mb_strrpos($imgPathInfo['dirname'], $appConfig['upload_spec_dir']) + mb_strlen($appConfig['upload_spec_dir']) + 1;
 
                     $pathItem = mb_substr($imgPathInfo['dirname'], $pos);
-                    $renderPathFile = $appConfig['image_dir'] . '/' . trim($pathItem, '/') . '/' . $renderFileName;
+                    $renderPathFile = $appConfig['render_spec_dir']. '/' . trim($pathItem, '/')
+                            . '/' . $renderFileName;
                 } else {
                     $renderPathFile = $appConfig['image_dir'] . '/'
                         . (isset($regionName) ? $regionName . '/' : '') . $renderFileName;
                 }
+                
+                $roadsModel->removeInThread($imageVal['src']);
                 
                 $maskImage->saveToFile($renderPathFile);
 

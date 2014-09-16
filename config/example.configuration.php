@@ -7,14 +7,19 @@
  */
 
 $config['upload_dir'] = 'upload/kucha';
+
+// Специальная папка загрузки. Относительно папки проекта
 $config['upload_spec_dir'] = 'upload/Ph_Upload_Special';
 $config['priority_spec_paths'] = array(
     'Важное',
     'ДТП'
 );
-$config['render_spec_dir'] = 'Ph_Upload_Special_Ren';
 
-$config['convertToUtf8'] = TRUE;
+// Вывод для спец файлов. Относительно папки проекта
+$config['render_spec_dir'] = 'rendered/Ph_Upload_Special_Ren';
+
+$config['convertToUtf8'] = FALSE;
+$config['convertToCp1251'] = FALSE;
 $config['max_rendered_files'] = 10;
 $config['image_dir'] = 'rendered';
 $config['logo_path'] = 'PastedGraphic-1.png';
